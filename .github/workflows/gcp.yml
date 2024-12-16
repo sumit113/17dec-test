@@ -1,52 +1,62 @@
----
-name: Build and Push Python Image to Google Cloud Platform
+name: Cloud-Deploy-Action
+
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+
+env:
+  PROJECT_ID: psychic-mason-441318-s7
+  REGION: us-central1
+  IMAGE_NAME: test-deploy
+  REPO_NAME: cloud-deploy
+  SERVICE_NAME: test-deploy
+
 jobs:
-  build-push-gcr:
-    name: Build and Push to GCP
+  build-and-deploy:
+    name: Setup, Build, and Deploy
     runs-on: ubuntu-latest
-    env:
-      IMAGE_NAME: lesson-087
-      PROJECT_ID: psychic-mason-441318-s7
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v3
 
-  # Authenticate with Google Cloud
-    - id: "auth"
-      uses: "google-github-actions/auth@v2"
-      with:
-        credentials_json: "${{ secrets.CLOUD_RUN_SERVICE_ACCOUNT }}"
+      # Authenticate with Google Cloud
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.CLOUD_RUN_SERVICE_ACCOUNT }}"
 
-    - name: Build Docker Image
-      run: docker build -t $IMAGE_NAME:latest .
+      # Setup gcloud CLI/SDK
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
 
-    - name: Automatic Tagging of Releases
-      id: increment-git-tag
-      run: |
-        bash ./scripts/git_update.sh -v major
+      - name: Build Docker Image
+        run: docker build -t $IMAGE_NAME:latest .
 
-    - name: Configure Docker Client
-      run: |-
-        gcloud auth configure-docker --quiet
-        gcloud auth configure-docker us-west2-docker.pkg.dev --quiet
+      - name: Automatic Tagging of Releases
+        id: increment-git-tag
+        run: |
+          bash ./scripts/git_update.sh -v major
 
-    - name: Push Docker Image to Container Registry (GCR)
-      env:
-        GIT_TAG: ${{ steps.increment-git-tag.outputs.git-tag }}
-      run: |-
-        docker tag $IMAGE_NAME:latest gcr.io/$PROJECT_ID/$IMAGE_NAME:latest
-        docker tag $IMAGE_NAME:latest gcr.io/$PROJECT_ID/$IMAGE_NAME:$GIT_TAG
-        docker push gcr.io/$PROJECT_ID/$IMAGE_NAME:latest
-        docker push gcr.io/$PROJECT_ID/$IMAGE_NAME:$GIT_TAG
+      - name: Configure Docker Client
+        run: |-
+          gcloud auth configure-docker --quiet
+          gcloud auth configure-docker us-west2-docker.pkg.dev --quiet
 
-    - name: Push Docker Image to Artifact Registry
-      env:
-        GIT_TAG: ${{ steps.increment-git-tag.outputs.git-tag }}
-      run: |-
-        docker tag $IMAGE_NAME:latest us-west2-docker.pkg.dev/$PROJECT_ID/images/$IMAGE_NAME:latest
-        docker tag $IMAGE_NAME:latest us-west2-docker.pkg.dev/$PROJECT_ID/images/$IMAGE_NAME:$GIT_TAG
-        docker push us-west2-docker.pkg.dev/$PROJECT_ID/images/$IMAGE_NAME:latest
-        docker push us-west2-docker.pkg.dev/$PROJECT_ID/images/$IMAGE_NAME:$GIT_TAG
+      - name: Push Docker Image to Container Registry (GCR)
+        env:
+          GIT_TAG: ${{ steps.increment-git-tag.outputs.git-tag }}
+        run: |-
+          docker tag $IMAGE_NAME:latest gcr.io/$PROJECT_ID/$IMAGE_NAME:latest
+          docker tag $IMAGE_NAME:latest gcr.io/$PROJECT_ID/$IMAGE_NAME:$GIT_TAG
+          docker push gcr.io/$PROJECT_ID/$IMAGE_NAME:latest
+          docker push gcr.io/$PROJECT_ID/$IMAGE_NAME:$GIT_TAG
+
+      - name: Push Docker Image to Artifact Registry
+        env:
+          GIT_TAG: ${{ steps.increment-git-tag.outputs.git-tag }}
+        run: |-
+          docker tag $IMAGE_NAME:latest us-west2-docker.pkg.dev/$PROJECT_ID/images/$IMAGE_NAME:latest
+          docker tag $IMAGE_NAME:latest us-west2-docker.pkg.dev/$PROJECT_ID/images/$IMAGE_NAME:$GIT_TAG
+          docker push us-west2-docker.pkg.dev/$PROJECT_ID/images/$IMAGE_NAME:latest
+          docker push us-west2-docker.pkg.dev/$PROJECT_ID/images/$IMAGE_NAME:$GIT_TAG
