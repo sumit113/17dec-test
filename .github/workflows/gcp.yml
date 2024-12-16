@@ -9,14 +9,14 @@ jobs:
     runs-on: ubuntu-latest
     env:
       IMAGE_NAME: lesson-087
-      PROJECT_ID: devopsbyexample-325402
+      PROJECT_ID: psychic-mason-441318-s7
     steps:
     - name: Checkout
       uses: actions/checkout@v2
 
     - uses: google-github-actions/setup-gcloud@master
       with:
-        service_account_key: ${{ secrets.SERVICE_ACCOUNT_KEY }}
+        service_account_key: ${{ secrets.CLOUD_RUN_SERVICE_ACCOUNT }}
         project_id: ${{ env.PROJECT_ID }}
         export_default_credentials: true
 
